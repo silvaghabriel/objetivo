@@ -1,0 +1,1058 @@
+$(function () {
+  $('[data-toggle="popover"]').popover();
+});
+
+$(function () {
+  $('[data-toggle="tooltip"]').tooltip();
+});
+//# sourceMappingURL=app.js.map
+
+ $(document).ready(function(){
+ 	
+ 	$('#cod_bairro').on('change', function(){
+
+ 		MostrarModalBairro(this);
+ 	});
+
+ 	$('#enviarbairro').on('click', function(){
+
+ 		cadastrarBairro( $('#cod_cidade').val(), $('#addnomebairro').val() );
+ 	});
+
+ 	$('#enviar_grade').on('click', function(){
+
+ 		cadastrarutilgrade( $('#nome_idade'), $('#modalidade'), 5 );
+
+ 	});
+
+ 	//Atalhos
+     $(document).keydown(function (e) {
+         if (e.wich === 113 || e.keyCode === 113) {
+             let $btnNovo = $('.btn-novo');
+             $btnNovo.trigger('click');
+             return false;
+         }else if (e.wich === 116 || e.keyCode === 116) { //F5
+             return false;
+
+         }else if (e.wich === 117 || e.keyCode === 117) {
+             let $btnBuscar = $('.btn-buscar');
+             $btnBuscar.trigger('click');
+             return false;
+         }else if (e.wich === 123 || e.keyCode === 123) {
+             let $btnCadastrarAtalho = $('.btn-cadastrar-atalho');
+             $btnCadastrarAtalho.trigger('click');
+             return false;
+         }
+     });
+
+ });
+
+
+
+function carrega_cidades_combo(){
+
+	var uf = $('#uf').val();
+
+	$.ajax({
+	    url: "/cadastro/combos/cidade",
+	    type: "GET",
+	    data: "uf=" + uf,
+	    dataType: "json"
+
+	}).done(function(cidade) { 
+	    var options = '';
+		for (var i = 0; i < cidade['combo'].length; i++) {
+			options += '<option value="' + cidade['combo'][i].cod_cidade + '">' + cidade['combo'][i].cidade + '</option>';
+		}	
+		$('#cod_cidade').html(options);
+
+	}).fail(function(jqXHR, textStatus ) {
+	    console.log("Request failed: " + textStatus);
+	    alet("Request failed: " + textStatus);
+
+	}).always(function() {
+	    console.log("completou");
+	    
+	});
+
+}
+
+function carrega_bairro_combo(){
+
+	var uf = $('#uf').val();
+	var cidade = $('#cod_cidade').val();
+	$.ajax({
+	    url: "/cadastro/combos/bairro",
+	    type: "GET",
+	    data: "cidade="+ cidade,
+	    dataType: "json"
+
+	}).done(function(bairro) { 
+	    var options = '';
+	    options += '<option value="">-- Bairro --</option>';
+		for (var i = 0; i < bairro['combo'].length; i++) {
+			options += '<option value="' + bairro['combo'][i].cod_bairro + '">' + bairro['combo'][i].bairro + '</option>';
+		}	
+		options += '<option value="add">-- Adicionar --</option>';
+		$('#cod_bairro').html(options);
+
+	}).fail(function(jqXHR, textStatus ) {
+	    console.log("Request failed: " + textStatus);
+	    alet("Request failed: " + textStatus);
+
+	}).always(function() {
+	    console.log("completou");
+	    
+	});
+
+}
+
+function carrega_endereco_cep(){
+		
+	var cep = $('#cep').val();
+	
+	if (cep != ''){
+
+		$('#modelcarregando').modal("show");
+
+		$.ajax({ 
+			url: "/cadastro/auto/cep",
+		    type: "GET",
+		    data: "cep="+ cep,
+		    dataType: "json"
+
+		}).done(function(cependereco) { 
+
+			$('#endereco').val(cependereco['INTEGRIDADE'].rua);
+			$('#uf').val(cependereco['INTEGRIDADE'].uf);
+
+			//Carrega cidade e seleciona
+			var options = '';
+			for (var i = 0; i < cependereco['CIDADES'].length; i++) {
+				options += '<option value="' + cependereco['CIDADES'][i].cod_cidade + '">' + cependereco['CIDADES'][i].cidade + '</option>';
+			}
+            options += '<option value="add">-- Adicionar --</option>';
+			$('#cod_cidade').html(options); 
+			$('#cod_cidade').val(cependereco['INTEGRIDADE'].cidade);
+
+			//Carrega bairro e seleciona
+			var options = '';
+			for (var i = 0; i < cependereco['BAIRROS'].length; i++) {
+				options += '<option value="' + cependereco['BAIRROS'][i].cod_bairro + '">' + cependereco['BAIRROS'][i].bairro + '</option>';
+			}
+            options += '<option value="add">-- Adicionar --</option>';
+			$('#cod_bairro').html(options); 
+			$('#cod_bairro').val(cependereco['INTEGRIDADE'].bairro);
+
+		}).fail(function(jqXHR, textStatus ) {
+		    console.log("Request failed: " + textStatus);
+		    alert('Cep não encontrado. ');
+		    $('#endereco').val('');
+		    $('#uf').val('');
+		    $('#cod_cidade').val('');
+		    $('#cod_bairro').val('');
+
+		}).always(function() {
+		    console.log("completou");
+		    $('#modelcarregando').modal("hide");		    
+		});
+	}
+}
+
+function buscardadosempresa(){
+
+	var cnpj 	= $('#cnpj').val();
+	var captcha = $('#captcha').val();
+
+	$("#captchaenviar").show();
+	$("#botaomodal").hide();
+	var options = '';
+	options += '		<img id="captcha_cnpj" src="../../../img/carregando_0.gif" height="200" border="0">';
+	$('#captch_atualizar').html(options); 
+
+
+	if (cnpj != '')
+	if (captcha != ''){
+		//$('#captchaenviar').modal("hide");
+		$.ajax({ 
+			url: "/cadastro/auto/empresa",
+		    type: "GET",
+		    data: "cnpj="+ cnpj + "&captcha="+captcha,
+		    dataType: "json"
+
+		}).done(function(empresa) { 
+
+			if ( empresa['status'] == 'OK' && empresa[17] == 'ATIVA' )
+			{
+				$('#rsocial').val(empresa[2]);
+				$('#fantasia').val(empresa[3]);
+				$('#cep').val(empresa[10]);
+				$('#endereco').val(empresa[7]);
+				$('#numero').val(empresa[8]);
+				$('#complemento').val(empresa[9]);
+				$('#numero').val(empresa[8]);
+				$('#uf').val(empresa[13]);
+
+				//Carrega cidade e seleciona
+				var options = '';
+				for (var i = 0; i < empresa[22]['CIDADES'].length; i++) {
+					options += '<option value="' + empresa[22]['CIDADES'][i].cod_cidade + '">' + empresa[22]['CIDADES'][i].cidade + '</option>';
+				}	
+				$('#cod_cidade').html(options); 
+				$('#cod_cidade').val(empresa[12]);
+
+				//Carrega bairro e seleciona
+				var options = '';
+				for (var i = 0; i < empresa[22]['BAIRROS'].length; i++) {
+					options += '<option value="' + empresa[22]['BAIRROS'][i].cod_bairro + '">' + empresa[22]['BAIRROS'][i].bairro + '</option>';
+				}	
+				$('#cod_bairro').html(options); 
+				$('#cod_bairro').val(empresa[11]);
+
+				$('#telefone').val(empresa[15]);
+				$('#email').val(empresa[14]);
+			}
+			else 
+			{
+				if (empresa['status'] == 'OK') alert(empresa[17]);
+				else alert(empresa['status']);
+			}
+
+
+		}).fail(function(jqXHR, textStatus ) {
+		    console.log("Request failed: " + textStatus);
+		    alert('Empresa não encontrada. ');
+		    $('#endereco').val('');
+		    $('#uf').val('');
+		    $('#cod_cidade').val('');
+		    $('#cod_bairro').val('');
+
+		}).always(function() {
+			$('#captchaenviar').modal("hide");
+		    console.log("completou");
+		});
+	}
+}
+
+function refreshcaptcha()
+{
+	$("#botaomodal").hide();
+	var options = '';
+	options += '		<img id="captcha_cnpj" src="../../../img/carregando_0.gif" height="200" border="0">';
+	$('#captch_atualizar').html(options);  
+	$.ajax({ 
+			url: "/cadastro/auto/empresa/refreshcaptcha",
+		    type: "GET",
+		    dataType: "json"
+
+		}).done(function(captcha) { 
+
+			//Carrega bairro e seleciona
+			var options = '';
+			options += '<div class="modal-body" id="captch_atualizar" style="text-align: left">';
+			options += '		<h4>Deseja completar os dados da empresa?</h4>';
+			options += '		<img id="captcha_cnpj" src="' + captcha + '" border="0">';
+			options += '		<label for="captcha_cnpj">Digite os caracteres acima:</label>';
+			options += '		<input type="text" id="captcha" name="captcha" class="form-control"name="captcha_cnpj" placeholder="" maxlength="6" required />';
+			options += '</div>';
+			$('#captch_atualizar').html(options); 
+			$("#botaomodal").show();
+
+
+		}).fail(function(jqXHR, textStatus ) {
+		    console.log("Request failed: " + textStatus);
+		     $('#captchaenviar').modal("hide");
+		    alert('Captcha não atualizada. ');
+		}).always(function() {
+		    console.log("captcha completou");
+		});
+}	
+
+function carregando(){
+	$('#janelasalvar').modal("hide");
+	$('#modelcarregando').modal("show");
+	//document.getElementById(nome_form).submit();
+} 
+
+
+
+function carregar_empresa_selecionada(){
+
+	$('#modelcarregando').modal("show");
+	var id_empresa = $('#id_empresa').val();
+	$.ajax({ 
+	    url: "/cadastro/auto/selecionaempresa",
+	    type: "GET",
+	    data: "idempresa="+ id_empresa,
+	    dataType: "json"
+
+	}).done(function(nomeempresa) { 
+	  	$('#modelcarregando').modal("hide");  
+	  	$('#selecionaempresa').modal("hide");
+
+	   	var options = '';
+	   	options += "&nbsp;</i> <a href='javascript:void(0)' onclick='abreselecionaempresa();'>";
+		options += nomeempresa[0]['fantasia'];
+		$('#nomeempresa').html(options);
+
+	}).always(function() {
+	    console.log("completou");
+	});
+
+}
+
+function abreselecionaempresa(){
+	$("#selecionaempresa").modal("show");
+}
+
+$('body').on('keypress', 'input, select', function(e) {
+	var self = $(this)
+	  , form = self.parents('form:eq(0)')
+	  , focusable
+	  , next
+	  , prev
+	  ;
+
+	if (e.shiftKey) {
+	 if (e.keyCode == 13) {
+	     focusable =   form.find('input,a,select,button,textarea').filter(':visible');
+	     prev = focusable.eq(focusable.index(this)-1); 
+
+	     if (prev.length) {
+	        prev.focus();
+	     } else {
+	        form.submit();
+	    }
+	  }
+	}
+	  else
+	if (e.keyCode == 13) {
+	    focusable = form.find('input,a,select,button,textarea').filter(':visible');
+	    next = focusable.eq(focusable.index(this)+1);
+	    if (next.length) {
+	        next.focus();
+	    } else {
+	        form.submit();
+	    }
+	    return false;
+	}
+});
+ 
+function adicionarutil(componente,janela,inicio){
+	if (componente.value == 'add'){
+		//if (inicio) componente.options[0].selected = "true";
+		$("#"+janela).modal("show");
+	}
+}
+
+function cadastrarutil(compSelect, nome, model, tipo){
+
+	model.modal("hide");
+	
+	if (compSelect.val() == 'add'){
+	
+		$('#modelcarregando').modal("show");
+		$.ajax({ 
+		    url: "/cadastro/auto/cadastrarutil",
+		    type: "GET",
+		    data: "nome="+ nome.val() + "&tipo="+ tipo,
+		    dataType: "json"
+		}).done(function(dados) { 
+		  	$('#modelcarregando').modal("hide");  
+
+		  	if (dados[0] != '1062'){
+			  	var options = '';
+			  	if (tipo == 7)	{
+			  		options += '<option value="">-- Perfil --</option>';
+			  		$('#cod_perfil').html(options);
+			  	}
+			   	
+				for (var i = 0; i < dados['combo'].length; i++) {
+					options += '<option value="' + dados['combo'][i].codigo + '">' + dados['combo'][i].nome + '</option>';
+				}	
+				if (tipo == 4)		options += '<option value="add">-- Atualizar --</option>';
+				else 				options += '<option value="add">-- Adicionar --</option>';
+
+				if (tipo == 7)	 $('#cod_perfil').html(options);
+			  	
+				compSelect.html(options);
+			}else{
+				alert('Ferfil já cadastrado.');
+			}
+
+		}).always(function() {
+		    console.log("completou");
+		    $('#modelcarregando').modal("hide");
+		});
+
+	}
+} 
+
+function cadastrarutilgrade(nome, model, tipo){
+
+	model.modal("hide"); 
+	
+		
+		$('#modelcarregando').modal("show");
+		$.ajax({ 
+		    url: "/cadastro/auto/cadastrarutil",
+		    type: "GET",
+		    data: "nome="+ nome.val() + "&tipo="+ tipo,
+		    dataType: "json"
+		}).done(function(dados) { 
+		  	$('#modelcarregando').modal("hide");  
+
+		  	if (dados[0] != '1062'){
+			  	var options = '';
+				
+				if ( document.getElementById('cod_idadetabela') == null )
+				{
+					for (var i = 0; i < dados['combo'].length; i++) {
+						options += '<option value="' + dados['combo'][i].codigo + '">' + dados['combo'][i].nome + '</option>';
+					}	
+					$('#cod_idade').html(options);
+				}else
+				{
+					for (var i = 0; i < dados['combo'].length; i++) {
+						options += '<tr>'+
+										'<td><input type="checkbox" id="grade' + (i+1) + '" name="grade' + (i+1) + '" ></td>'+
+										'<td style="width: 90px">' + dados['combo'][i].nome + '<input type="hidden" name="cod_idade' + (i+1) + '" value="' + dados['combo'][i].codigo + '"></td>'+
+										'<td><input type="text" id="tamanhoquant' + i + '" name="tamanhoquant' + i + '" class="form-control input-sm"></td>'+
+									'</tr>';
+					}	
+					options += '<tr>'+
+									'<td><a href="javascript:void(0)" onclick="$(\'#modalidade\').modal(\'show\');" ><span class="glyphicon glyphicon-plus"></span></a>'+
+									'</td>'+
+								'</tr>';
+					$('#cod_idadetabela').html(options);
+				}
+			}else{
+				alert('Dado já cadastrado.');
+			}
+
+		}).always(function() {
+		    console.log("completou");
+		    $('#modelcarregando').modal("hide");
+		});
+
+} 
+
+//======== Usuarios =====================================================================================================
+//======== Usuarios =====================================================================================================
+function user_add_empresa(){
+
+	var comboOrigem = document.getElementById("cod_empresa");
+	var comboDestino = document.querySelectorAll('input[name="cod_user_empresa[]"]');;
+	var inicio = document.getElementById("data_inicial1");
+	var final = document.getElementById("data_final1");
+	var perfil = document.getElementById("cod_perfil");
+	var adicionar = true;
+
+	if (comboOrigem.value > 0)
+	if (inicio.value != '')
+	if (perfil.value > 0){
+		
+
+		for (i=0; i < comboDestino.length; i++){
+			if (comboDestino[i].value == comboOrigem.value)	adicionar = false;
+		}
+
+		if (adicionar){
+			
+			/*T1 = document.getElementById("teste"); // obtem tabela
+			TR = T1.insertRow(T1.rows.length); // insere linha final
+			TR.innerHTML =
+			    "<td><input class='ic' type='text' value=''/></td>" +
+			    "<td><input class='ic' type='text' value=''/></td>" +
+			    "<td><input class='bc' id='e' type='button' value='X' onclick= 'excluirLinha()'/></td>"; */
+
+			var local=document.getElementById('teste');
+			var tblBody = local.tBodies[0];
+			var newRow = tblBody.insertRow(-1);	
+			newRow.id = 'reg[]';
+			var newCell0 = newRow.insertCell(0);
+			newCell0.innerHTML = '<td><input type="hidden" name="cod_user_empresa[]" class="cod_user_empresa" value="' + comboOrigem.options[comboOrigem.selectedIndex].value + '">' + comboOrigem.options[comboOrigem.selectedIndex].text + '</td>'; 
+			var newCell1 = newRow.insertCell(1);
+			newCell1.innerHTML = '<td><input type="hidden" name="cod_perfil[]" class="cod_perfil" value="' + perfil.options[perfil.selectedIndex].value + '">' + perfil.options[perfil.selectedIndex].text + '</td>';
+			var newCell2 = newRow.insertCell(2);
+			newCell2.innerHTML = '<td><input type="hidden" name="dinicio[]" value="' + inicio.value + '">' + inicio.value + '</td>';
+			var newCell3 = newRow.insertCell(3);
+			newCell3.innerHTML = '<td><input type="hidden" name="dfinal[]" value="' + final.value + '">' + final.value + '</td>';
+			var newCell4 = newRow.insertCell(4);
+			newCell4.innerHTML = '<td><a onclick="removerLinha(this, \'teste\')"><span class="glyphicon glyphicon-remove"></span></a></td>';
+
+
+		}
+		else
+			alert('Empresa já adicionada!');
+
+	}else
+		alert('Selecione o Perfil!');
+	else
+		alert('Informe a data de Início!');
+	else
+		alert('Selecione uma empresa para adicionar!');
+}
+
+
+function removerLinha(obj, tabela) {
+ 
+    // Capturamos a referência da TR (linha) pai do objeto
+    var objTR = obj.parentNode.parentNode;
+    // Capturamos a referência da TABLE (tabela) pai da linha
+    var objTable = objTR.parentNode;
+    // Capturamos o índice da linha
+    var indexTR = objTR.rowIndex;
+    // Chamamos o método de remoção de linha nativo do JavaScript, passando como parâmetro o índice da linha  
+    document.getElementById(tabela).deleteRow(indexTR);
+    //objTable.deleteRow(indexTR);
+} 
+
+function listarPermissoes(obj) {
+
+	 var cod_perfil = obj.value;
+
+
+    if ( cod_perfil != '' && cod_perfil != 'add' ){
+
+    	 $('#modelcarregando').modal("show");
+
+	   	var CSRF_TOKEN = globalApp._TOKEN_;//$('meta[name="csrf-token"]').attr('content');
+
+	    $.ajax({ 
+	    	method: "POST", 
+	    	url : '/util/usuarios/busca/permissoes',
+	    	data: {cod_perfil: cod_perfil, _token: CSRF_TOKEN}, 
+	    	dataType : "json", 
+	    	success : function(dados){
+							
+					
+				var options = '';
+				var titulo  = '';
+				var cont 	= 0;
+
+				options += 	'<div class="panel-group" id="accordion">';
+
+				for (var i = 0; i < dados['combo'].length; i++) {
+
+					titulo_atual = (dados['combo'][i].rota).toString().split("/", 1).toString();
+					if ( titulo != titulo_atual ) {
+
+						
+						if (titulo != '') {
+
+							options += 	'</table>'+
+										'</div>'+
+										'</div>'+
+										'</div>';
+
+						}
+
+						cont++;
+						options += 	'<div class="panel panel-primary">'+
+										'<div class="panel-heading">'+
+											'<h4 class="panel-title">'+
+												'<a data-toggle="collapse" data-parent="#accordion" href="#collapse'+cont+'">'+
+													'Lista de ' + titulo_atual +
+												'</a>'+
+											'</h4>'+
+										'</div>'+
+										'<div id="collapse'+cont+'" class="panel-collapse collapse ">'+
+											'<div class="panel-body">';
+
+						titulo = (dados['combo'][i].rota).toString().split("/", 1).toString();
+					
+
+						options += 	'<table class="table table-hover" >'+
+										'<tr>'+
+											'<th>Função</th>'+
+											'<th>Liberado</th>'+
+										'</tr>';
+
+					}
+
+					checked = '';
+					if (dados['combo'][i].liberado == 1)
+						checked = 'checked';
+
+					options += 	'<tr>'+
+									'<input type="hidden" name="quant_rota[]" class="quant_rota" value="1" >'+
+									'<input type="hidden" name="id_rota'+i+'" id="id_rota'+i+'" value="'+ dados['combo'][i].id_rota +'" >'+
+									'<td>' + dados['combo'][i].descricao + '</td>'+
+									'<td>'+
+										'<label class="checkbox1" for="permissao_rota'+i+'">'+
+											'<input type="checkbox" name="permissao_rota'+i+'" id="permissao_rota'+i+'" value="1"  ' + checked + '>'+
+											'<span></span>'+
+										'</label>'+
+									'</td>'+
+								'</tr>';
+
+				}	
+				options += 	'</div>';
+				$('#permissoes').html(options); 
+					
+				$('#modelcarregando').modal("hide");
+			}, 
+	        error: function(XMLHttpRequest, textStatus, errorThrown){
+	        	 $('#modelcarregando').modal("hide");
+	        }
+
+
+		}); 
+
+	}else{
+		
+		if ( cod_perfil == 'add' ){
+			adicionarutil(obj,'modalperfil',false);
+		}
+
+		var options = '';
+		$('#permissoes').html(options); 
+
+		
+	}
+
+} 
+
+
+function salvarPerfil() {
+
+
+	var cod_perfil = $('#codPerfilAlterar').val();
+
+    if ( cod_perfil != '' && cod_perfil != 'add' ){
+
+    	$('#modelcarregando').modal("show");
+
+
+    	var quant_rota 		= document.querySelectorAll('input[name="quant_rota[]"]') ;
+    	var id_rota 		= [];
+    	var permissao_rota 	= [];
+
+    	for (var j = 0; j < quant_rota.length; j++){
+
+    		id_rota[j] 			= document.getElementById('id_rota'+j).value;
+    		permissao_rota[j] 	= document.getElementById('permissao_rota'+j).checked.toString();
+    	}
+
+	   	var CSRF_TOKEN = globalApp._TOKEN_;//$('meta[name="csrf-token"]').attr('content');
+
+	   	
+	    $.ajax({ 
+	    	method: "POST", 
+	    	url : '/util/usuarios/salvarperfil',
+	    	data: {id_rota: id_rota, permissao_rota: permissao_rota, _token: CSRF_TOKEN, cod_perfil: cod_perfil}, 
+	    	dataType : "json", 
+	    	success : function(dados){
+				
+				var options = '';
+				var titulo  = '';
+				var cont 	= 0;
+
+				options += 	'<div class="panel-group" id="accordion">';
+
+				for (var i = 0; i < dados['combo'].length; i++) {
+
+					titulo_atual = (dados['combo'][i].rota).toString().split("/", 1).toString();
+					if ( titulo != titulo_atual ) {
+
+						
+						if (titulo != '') {
+
+							options += 	'</table>'+
+										'</div>'+
+										'</div>'+
+										'</div>';
+
+						}
+
+						cont++;
+						options += 	'<div class="panel panel-primary">'+
+										'<div class="panel-heading">'+
+											'<h4 class="panel-title">'+
+												'<a data-toggle="collapse" data-parent="#accordion" href="#collapse'+cont+'">'+
+													'Lista de ' + titulo_atual +
+												'</a>'+
+											'</h4>'+
+										'</div>'+
+										'<div id="collapse'+cont+'" class="panel-collapse collapse ">'+
+											'<div class="panel-body">';
+
+						titulo = (dados['combo'][i].rota).toString().split("/", 1).toString();
+					
+
+						options += 	'<table class="table table-hover" >'+
+										'<tr>'+
+											'<th>Função</th>'+
+											'<th>Liberado</th>'+
+										'</tr>';
+
+					}
+
+					checked = '';
+					if (dados['combo'][i].liberado == 1)
+						checked = 'checked';
+
+					options += 	'<tr>'+
+									'<input type="hidden" name="quant_rota[]" class="quant_rota" value="1" >'+
+									'<input type="hidden" name="id_rota'+i+'" id="id_rota'+i+'" value="'+ dados['combo'][i].id_rota +'" >'+
+									'<td>' + dados['combo'][i].descricao + '</td>'+
+									'<td>'+
+										'<label class="checkbox1" for="permissao_rota'+i+'">'+
+											'<input type="checkbox" name="permissao_rota'+i+'" id="permissao_rota'+i+'" value="1"  ' + checked + '>'+
+											'<span></span>'+
+										'</label>'+
+									'</td>'+
+								'</tr>';
+
+				}	
+				options += 	'</div>';
+				$('#permissoes').html(options); 
+					
+				$('#modelcarregando').modal("hide");	
+
+			}, 
+	        error: function(XMLHttpRequest, textStatus, errorThrown){
+	        	 $('#modelcarregando').modal("hide");
+	        }
+
+
+		}); 
+	   
+	}else{
+		
+		alert('Selecione um perfil.');
+
+		
+	}
+
+} 
+
+
+function validar() {
+
+	var quant_rota 		= document.querySelectorAll('input[name="cod_user_empresa[]"]') ;
+	
+	 
+	if (quant_rota.length <= 0) {
+		$('#janelasalvar').modal("hide");
+		alert('Inclua uma empresa para o acesso do usuário.');
+		return false;
+	}
+}
+
+/*
+$(document).on("click", "#teste", function(evt)
+{
+	 var objTable = this.parentNode;
+    // Capturamos o índice da linha
+    var indexTR = objTR.rowIndex;
+    // Chamamos o método de remoção de linha nativo do JavaScript, passando como parâmetro o índice da linha  
+   	alert(indexTR);
+
+}); */
+
+/*
+ $(document).ready(function(){
+      $('#teste').click(function(){
+        $trClass = $(this).attr('class');
+        if ($trClass == undefined || $trClass == 'desclicado'){
+          alert('teste1');
+        } else {
+          alert(this);
+        }
+      });
+    });  */
+
+//===================== ESTOQUE ===========================================================================
+
+
+function carrega_combo_etiqueta_formato(componente){  ///sem uso
+
+	var id = componente.value;
+
+	if (id > 0) {
+		var CSRF_TOKEN = globalApp._TOKEN_;//$('meta[name="csrf-token"]').attr('content');
+
+		$('#modelcarregando').modal("show");
+
+		$.ajax({
+		    method: "POST", 
+		    url : '/estoque/etiquetas/carregaformatos',
+		    data: {idImpressora: id, _token: CSRF_TOKEN}, 
+		    dataType : "json"
+		}).done(function(dados) { 
+		    var options = '';
+			for (var i = 0; i < dados['combo'].length; i++) {
+				options += '<option value="' + dados['combo'][i].cod_etiqueta + '">' + dados['combo'][i].nome + '</option>';
+			}	
+			$('#formatoetiqueta').html(options);
+
+		}).fail(function(jqXHR, textStatus ) {
+		    console.log("Request failed: " + textStatus);
+		    alert("Request failed: " + textStatus);
+
+		}).always(function() {
+			$('#modelcarregando').modal("hide");
+		    console.log("completou");
+		    
+		});
+	}
+
+}
+
+//===================AJUSTE DE ESTOQUE============================================================================
+
+
+
+//===================FIM AJUSTE DE ESTOQUE============================================================================
+
+//=========================================FINNCEIRO==================================================================
+
+
+//=========================================FINNCEIRO NFE==================================================================
+
+
+function numberToReal(numero) {
+	if (numero == '')
+		return '0,00';
+	else if (isNumber(numero)) {
+	    var numero = numero.toFixed(2).split('.');
+	    numero[0] = numero[0].split(/(?=(?:...)*$)/).join('.');
+	    return numero.join(',');
+	}else 
+		return numero;
+}
+
+function realParaNumber(texto){
+	if (texto == '')
+		return 0.00;
+	else {
+	    var compativelComParseFloat = texto.replace("R$ ","");
+	    compativelComParseFloat = compativelComParseFloat.replace(".","");
+	    compativelComParseFloat = compativelComParseFloat.replace(",",".");
+	    var valor = parseFloat(compativelComParseFloat);
+	    return valor;
+	}
+}
+
+function isNumber(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+
+
+
+
+//Biblioteca geral==========================================================
+function carregarcombo(componente, filtro, id){
+
+		
+	var CSRF_TOKEN = globalApp._TOKEN_;// $('meta[name="csrf-token"]').attr('content');
+
+	$('#modelcarregando').modal("show");
+
+	$.ajax({
+		method: "POST", 
+		url : '/ajax/combos',
+		data: {id: id, filtro: filtro, _token: CSRF_TOKEN}, 
+		dataType : "json"
+	}).done(function(dados) { 
+		
+		var options = '';
+		for (var i = 0; i < dados['combo'].length; i++) {
+			options += '<option value="' + dados['combo'][i].codigo + '">' + dados['combo'][i].nome + '</option>';
+		}	
+		componente.html(options);
+
+	}).fail(function(jqXHR, textStatus ) {
+		console.log("Request failed: " + textStatus);
+		alert("Request failed: " + textStatus);
+
+	}).always(function() {
+		$('#modelcarregando').modal("hide");
+		console.log("completou");
+		    
+	});
+
+}
+
+jQuery(function($){ 
+	$().ready(function(){
+	 	$("#tipo").change(function(){ //Quando houver uma mudança no select
+
+			var opt = $("#tipo").val(); //Recupera o valor do option selecionado
+			if(opt == 1)
+			{
+				document.getElementById('labelcpf').innerHTML = 'CPF';
+				document.getElementById('labelrg').innerHTML = 'RG';
+				$('#cpf').attr('placeholder', 'CPF');
+				$("#cpf").mask("999.999.999-99");
+			
+			}else if(opt == 2)
+			{	
+				document.getElementById('labelcpf').innerHTML = 'CNPJ';
+				document.getElementById('labelrg').innerHTML = 'IE';
+				$('#cpf').attr('placeholder', 'CNPJ');
+				$("#cpf").mask("99.999.999/9999-99");  
+			}
+
+		});  
+	});
+});
+//=======================================FFIM  INNCEIRO=============================================================
+
+//===================BIBLIOTECA============================================================================
+function SomenteNumero(e, negativo = true){
+    var tecla=(window.event)?event.keyCode:e.which;   
+    if((tecla>47 && tecla<58)) return true;
+    else{
+    	if (tecla==8 || tecla==0 || (tecla==45 && negativo) || tecla==44 || tecla==46) return true;
+		else  return false;
+    }
+}
+
+
+//Distribuição das datas de parcelas
+function correcaoDia(dia) {
+    if (isNaN(dia)) return false;
+    
+    return dia < 10 ? "0" + dia : dia ;
+}
+function correcaoMes(mes) {
+    if (isNaN(mes)) return false;
+    
+    return mes < 10 ? "0" + mes : mes ;
+}
+function leapYear(year){
+	return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+}
+function calcularParcelas(parcelas, stringData) {
+    var ano = stringData.substring(6,10);
+    var mes = stringData.substring(3,5);
+    var dia = stringData.substring(0,2);
+
+  	if(dia =='29' && leapYear(ano )) dia = '28';
+
+    var dataInicial = new Date(ano,mes,dia);
+    var dataParcela = new Date();
+    var resultado = [];
+    var novoMes = 0;
+    var novoAno = 0;
+     
+    for ( var p = 0 ; p < parcelas ; p++ ) {
+        novoMes = ( dataInicial.getMonth() + p ) % 12;
+        novoMes = novoMes == 0 ? 12 : novoMes;
+        novoAno = dataInicial.getFullYear() + ( ( ( dataInicial.getMonth() + p ) - novoMes ) / 12 );
+        if (novoMes == '12')	 novoAno = novoAno + 1;
+        console.log(dataInicial.getFullYear(), dataInicial.getMonth(), p, novoMes, novoAno);
+
+ 		dataParcela.setDate(dia);
+        dataParcela.setMonth(novoMes);
+        dataParcela.setYear(novoAno);
+        
+        resultado[p] = correcaoDia(dataParcela.getDate()) + "/" + correcaoMes(dataParcela.getMonth() + 1 ) + "/" + dataParcela.getFullYear();
+       
+    }
+
+
+    return resultado;
+}
+
+
+//Calcular valores das parcelas
+function calcularValoresParcelas(parcelas, valor)
+{
+	var resultado = [];
+	var valor   = parseFloat(valor)
+  	var parcelas = parseInt(parcelas);
+  	var totalParcelas = 0;
+  	var diferenca =0;
+
+	for ( var p = 0 ; p < parcelas ; p++ ) 
+	{
+		resultado[p] = valor / parcelas;
+	}
+
+	for ( var p = 0 ; p < parcelas ; p++ ) 
+	{
+		totalParcelas += parseFloat(resultado[p].toFixed(2));
+	}
+	diferenca = valor - totalParcelas;
+	if (diferenca != 0)	resultado[0] = resultado[0] + diferenca;
+	console.log(diferenca.toFixed(2));
+	return resultado;
+}
+
+function MostrarModalBairro(componente)
+{
+	if (componente.value == 'add')
+	if ($("#cod_cidade").val() > 0 ){
+		$("#modalbairro").modal("show");
+	}else
+	{
+		$("#modalbairro").modal("hide");
+		alert('Selecione a cidade antes de cadastrar o bairro.');
+	}
+}
+
+function cadastrarBairro(cidade,bairro){
+
+	$('#modalbairro').modal("hide");
+	
+	$('#modelcarregando').modal("show");
+
+	var CSRF_TOKEN = globalApp._TOKEN_;//$('meta[name="csrf-token"]').attr('content');
+		
+	$.ajax({
+		method: "POST", 
+		url : '/ajax/combos',
+		data: {id: 4,cidade: cidade, bairro: bairro, _token: CSRF_TOKEN}, 
+		dataType : "json"
+	}).done(function(dados) { 
+
+		var options = '';
+	    options += '<option value="">-- Bairro --</option>';
+		for (var i = 0; i < dados['combo'].length; i++) {
+			options += '<option value="' + dados['combo'][i].cod_bairro + '">' + dados['combo'][i].bairro + '</option>';
+		}	
+		options += '<option value="add">-- Adicionar --</option>';
+		$('#cod_bairro').html(options);
+
+	}).fail(function(jqXHR, textStatus ) {
+		console.log("Request failed: " + textStatus);
+		alert("Request failed: " + textStatus);
+
+	}).always(function() {
+		$('#modelcarregando').modal("hide");
+		console.log("completou");
+		    
+	});
+
+}
+
+
+function dataUs(data){
+    var data_br = data.split('/');
+    return data_br[2]+'-'+data_br[1]+'-'+data_br[0];
+}
+
+$('input').attr('autocomplete', 'off');
+
+$('input[type="text"]').keyup(function(){
+    var start = this.selectionStart;
+    var end = this.selectionEnd;
+    this.value = this.value.toUpperCase();
+    this.setSelectionRange(start, end);
+});
+
+$('textarea').keyup(function(){
+    var start = this.selectionStart;
+    var end = this.selectionEnd;
+    this.value = this.value.toUpperCase();
+    this.setSelectionRange(start, end);
+});
+
+$(document).on('shown.bs.modal', '.modal', function () {
+    $(this).find("input:visible:first").focus();
+});

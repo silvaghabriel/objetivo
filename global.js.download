@@ -1,0 +1,236 @@
+var globalApp = {
+    $_select2: $('.select2'),
+    $_datepicker: jQuery('.datepicker'),
+    $_inputMaskMoney: jQuery('.maskmoney'),
+    $_btnSelecMudaEmpresa: jQuery('#selectEmpresa'),
+    _TOKEN_: jQuery('#csrf_token').prop('content'),
+    ini: function(){
+        //SELECT 2
+        this.select2();
+        //BOOTSTRAP DATE PICKER
+        this.datePicker();
+        //MASK MONEY [.maskmoney]
+        this.masMoney();
+        //LOADING
+        this.loading.promessaAjax();
+        //MUDA EMPRESA
+        this.mudaEmpresa();
+    },
+    select2: function () {
+        if(this.$_select2.length){
+            this.$_select2.select2();
+            this.$_select2.each(function(index, key){
+                let placeholder = $(this).prop('placeholder');
+                let dropdownParent = $(this).prop('dropdownParent');
+                //@TODO COLOCAR ATRIBUTO PARA RECEBER O POSITION PARA EVITAR O BUG DO LAYOUT
+                if(placeholder){
+                    $(this).select2({text: placeholder});
+                }
+                if(dropdownParent){
+                    $(this).select2({dropdownParent: jQuery(dropdownParent) });
+                }
+            });
+        }
+    },
+    datePicker: function () {
+        if(this.$_datepicker.length) {
+            let startdate = new Date();
+            if(this.$_datepicker.data('startdate')){
+                startdate = this.$_datepicker.data('startdate');
+            }
+            this.$_datepicker.datepicker({
+                format: 'dd/mm/yyyy',
+                language: 'pt-BR',
+                autoclose: true,
+                clearBtn: true,
+                container: '#app-container',
+                todayHighlight: true,
+                clearBtn: false,
+                //startDate:  startdate
+            });
+        }
+    },
+    masMoney: function () {
+        if(this.$_inputMaskMoney.length){
+            this.$_inputMaskMoney.maskMoney({
+                //'prefix': ($inputMoney.hasData('prefix'))? $inputMoney.data('prefix') : false,
+                'allowNegative': true,
+                'thousands': '.',
+                'decimal': ',',
+                'affixesStay': false
+            });
+        }
+    },
+    loading: {
+        $el: $('#loading'),
+        time: 0,
+        autoClose: true,
+        show: function(){
+            this.$el.show('slow');
+        },
+        hide: function(){
+            this.$el.hide('slow', function(){
+                globalApp.loading.$el.find('h4').html('Processando...');
+                globalApp.loading.$el.find('p').html('Aguarde finalizar o processamento.');
+                globalApp.loading.$el.find('.container').css({
+                    'background-color': '#048674',
+                    'border-color': '#048674',
+                    'color': '#fff'
+                });
+                return this;
+
+                globalApp.loading.time = 0;
+            });
+            this.autoClose = true;
+        },
+        promessaAjax: function(){
+            jQuery(document).ajaxStart(function () {
+                globalApp.loading.show();
+            });
+            jQuery(document).ajaxStop(function () {
+                if(globalApp.loading.autoClose) {
+                    setTimeout(function () {
+                        globalApp.loading.hide();
+                    }, globalApp.loading.time);
+                }
+                globalApp.loading.autoClose = true;
+            });
+            return this;
+        },
+        erro: function(msg, titulo, newTime) {
+            if(newTime){
+                this.time += newTime;
+            }
+            if(msg){
+                this.$el.find('p').html(msg);
+            }
+            if(titulo){
+                this.$el.find('h4').html(titulo);
+            }
+            this.$el.find('.container').css({
+                'background-color': '#d57d6d',
+                'border-color': '#cf595b',
+                'color': '#fff'
+            });
+            return this;
+        },
+        atencao: function(msg, titulo, newTime) {
+            if(newTime){
+                this.time += newTime;
+            }
+            if(msg){
+                this.$el.find('p').html(msg);
+            }
+            if(titulo){
+                this.$el.find('h4').html(titulo);
+            }
+            this.$el.find('.container').css({
+                'background-color': '#e8b769',
+                'border-color': '#e59453',
+                'color': '#fff'
+            });
+            return this;
+        },
+        msg: function(msg, titulo) {
+            this.$el.find('p').html(msg);
+            if(titulo){
+                this.$el.find('h4').html(titulo);
+            }
+            return this;
+        }
+    },
+    mudaEmpresa: function(){
+        this.$_btnSelecMudaEmpresa.change(function(){
+
+            globalApp.loading.autoClose = false;
+
+            let id_empresa = $(this).val();
+            let mudaEmpresa = $.ajax({
+                async: true,
+                url: "/cadastro/auto/selecionaempresa",
+                type: "POST",
+                data: {cod_empresa: id_empresa},
+                dataType: "json",
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('X-CSRF-TOKEN', globalApp._TOKEN_ );
+                }
+            });
+
+            mudaEmpresa.fail(function () {
+                alert("Ocorreu um erro durante a tentativa de processamento! Verifique sua conexão, caso o erro persista entre em contato com o suporte.");
+            });
+
+            mudaEmpresa.done(function (data) {
+                if(data.erro){
+                    alert(data.status);
+                }
+                location.href="/";
+            });
+
+        });
+    },
+    getEnderecoPeloCEP: function(){
+
+        let CEP = $('#cep').val();
+        if (cep.length){
+            $.ajax({
+                url: "/cadastro/auto/cep",
+                type: "GET",
+                data: "cep="+ cep,
+                dataType: "json"
+            }).done(function(cependereco) {
+
+                $('#endereco').val(cependereco['INTEGRIDADE'].rua);
+                $('#uf').val(cependereco['INTEGRIDADE'].uf);
+
+                //Carrega cidade e seleciona
+                var options = '';
+                for (var i = 0; i < cependereco['CIDADES'].length; i++) {
+                    options += '<option value="' + cependereco['CIDADES'][i].cod_cidade + '">' + cependereco['CIDADES'][i].cidade + '</option>';
+                }
+                $('#cod_cidade').html(options);
+                $('#cod_cidade').val(cependereco['INTEGRIDADE'].cidade);
+
+                //Carrega bairro e seleciona
+                var options = '';
+                for (var i = 0; i < cependereco['BAIRROS'].length; i++) {
+                    options += '<option value="' + cependereco['BAIRROS'][i].cod_bairro + '">' + cependereco['BAIRROS'][i].bairro + '</option>';
+                }
+                $('#cod_bairro').html(options);
+                $('#cod_bairro').val(cependereco['INTEGRIDADE'].bairro);
+
+            }).fail(function(jqXHR, textStatus ) {
+                console.log("Request failed: " + textStatus);
+                alert('Cep não encontrado. ');
+                $('#endereco').val('');
+                $('#uf').val('');
+                $('#cod_cidade').val('');
+                $('#cod_bairro').val('');
+
+            });
+        }
+    }
+};
+
+globalApp.loading.msg('Aguarde todos os dados serem carregados.', 'Carregando dados...').show();
+
+(function ($) {
+    globalApp.ini();
+    jQuery(window).load(function () {
+        globalApp.loading.hide();
+    });
+})(jQuery);
+
+
+function showMensagem(modelo, titulo, duracao, evento, mensagem)
+{
+    if (modelo == 1) {
+        $.growl({
+            title: titulo,
+            duration: duracao,
+            style: evento,
+            message: mensagem,
+            location: "tc"
+        });
+    }
+}
